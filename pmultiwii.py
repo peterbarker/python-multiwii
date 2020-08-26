@@ -9,7 +9,10 @@ import struct
 import serial
 import time
 import socket
-  
+import sys
+
+py3 = (sys.version[0] == "3")
+
 class Multiwii:
     """ Multiwii Serial Protocol """
     OSD_RSSI_VALUE              = 0
@@ -268,7 +271,7 @@ class Multiwii:
         try:
             if not useTcp:
                 self.ser.open()
-                print "Waking up board on " + self.ser.port + "..."
+                print("Waking up board on " + self.ser.port + "...")
                 time.sleep(2)
             else:
                 # Create a TCP/IP socket
@@ -277,8 +280,8 @@ class Multiwii:
                 server_address = (ipAddress, ipPort)
                 self.sock.connect(server_address)
 
-        except Exception, error:
-            print "\n\nError opening port\n" + str(error) + "\n\n"
+        except Exception as error:
+            print("\n\nError opening port\n" + str(error) + "\n\n")
 
 
 
@@ -318,18 +321,18 @@ class Multiwii:
                     checksum ^= (ord(c) & 0xFF)
         bf = bf + payload
         bf.append(checksum)
-        #print "here in requesrMSP"
-        #print bf
+        #print("here in requesrMSP")
+        #print(bf)
         return bf
 
 
     def sendTcpRequestMSP(self, msp, payloadinbytes = False):
-        #print "here in sendRequestMSP"
+        #print("here in sendRequestMSP")
         data = []
         for i in msp:
             data.append(i)
-        #print data
-        #print "Data length %d " %(len(data)-6)
+        #print(data)
+        #print("Data length %d " %(len(data)-6))
         try:
             if payloadinbytes == False:
                 b = None
@@ -338,17 +341,17 @@ class Multiwii:
             else:
                 b = None
                 b = self.sock.send(struct.pack('<3c2B%BhB' % (len(data) - 6), *data))
-        except Exception, error:
-            print "Error in sendRequestMSP"
-            print "("+str(error)+")\n\n"        
+        except Exception as error:
+            print("Error in sendRequestMSP")
+            print("("+str(error)+")\n\n")
 
     def sendRequestMSP(self, msp, payloadinbytes = False):
-        #print "here in sendRequestMSP"
+        #print("here in sendRequestMSP")
         data = []
         for i in msp:
             data.append(i)
-        #print data
-        #print "Data length %d " %(len(data)-6)
+        #print(data)
+        #print("Data length %d " %(len(data)-6))
         try:
             if payloadinbytes == False:
                 b = None
@@ -357,9 +360,9 @@ class Multiwii:
             else:
                 b = None
                 b = self.ser.write(struct.pack('<3c2B%BhB' % (len(data) - 6), *data))
-        except Exception, error:
-            print "Error in sendRequestMSP"
-            print "("+str(error)+")\n\n"        
+        except Exception as error:
+            print("Error in sendRequestMSP")
+            print("("+str(error)+")\n\n")
 
     def evaluateCommand(self, cmd, dataSize):
         if cmd == Multiwii.MSP_NAME:
@@ -521,20 +524,24 @@ class Multiwii:
             self.msp_battery_state['current'] = self.read16()  
 
     def parseMspData(self, c):
+        if py3:
+            c_chr = chr(bytearray(c)[0])
+        else:
+            c_chr = c
         if self.c_state == Multiwii.IDLE:
-            if c == '$':
+            if c_chr == '$':
                 self.c_state = Multiwii.HEADER_START
             else:
                 self.c_state = Multiwii.IDLE
         elif self.c_state == Multiwii.HEADER_START:
-            if c == 'M':
+            if c_chr == 'M':
                 self.c_state = Multiwii.HEADER_M
             else:
                 self.c_state = Multiwii.IDLE
         elif self.c_state == Multiwii.HEADER_M:
-            if c == '>':
+            if c_chr == '>':
                 self.c_state = Multiwii.HEADER_ARROW
-            elif c == '!':
+            elif c_chr == '!':
                 self.c_state = Multiwii.HEADER_ERR
             else:
                 self.c_state = Multiwii.IDLE
@@ -560,14 +567,14 @@ class Multiwii:
             self.checksum ^= ((struct.unpack('<B',c)[0])&0xFF)
             self.inBuf[self.offset] = ((struct.unpack('<B',c)[0]) & 0xFF)
             self.offset += 1
-            #print "self.inBuf..."
-            #print self.inBuf[offset-1]
+            #print("self.inBuf...")
+            #print(self.inBuf[offset-1])
         elif self.c_state == Multiwii.HEADER_CMD and self.offset >= self.dataSize:
             # compare calculated and transferred checksum
-            #print "Final step..."
+            #print("Final step...")
             if ((self.checksum&0xFF) == ((struct.unpack('<B',c)[0])&0xFF)):
                 if self.err_rcvd:
-                    print "Copter didn't understand the request type"
+                    print("Copter didn't understand the request type")
                 else:
                     self.evaluateCommand(self.cmd, self.dataSize)
                     
@@ -578,14 +585,14 @@ class Multiwii:
                         self.ser.flushInput()
                         self.ser.flushOutput()
             else:
-                print '"invalid checksum for command "+((int)(cmd&0xFF))+": "+(checksum&0xFF)+" expected, got "+(int)(c&0xFF))'
-                print '"<"+(cmd&0xFF)+" "+(dataSize&0xFF)+"> {");'
+                print('"invalid checksum for command "+((int)(cmd&0xFF))+": "+(checksum&0xFF)+" expected, got "+(int)(c&0xFF))')
+                print('"<"+(cmd&0xFF)+" "+(dataSize&0xFF)+"> {");')
                 for i in range(0, len(self.dataSize), 1):
                     if (i != 0):
-                        print ""
+                        print("")
                     print ((self.inBuf[i] & 0xFF))
-                print "} ["+(struct.unpack('<B',c)[0])+"]"
-                print "String"
+                print("} ["+(struct.unpack('<B',c)[0])+"]")
+                print("String")
 
             self.c_state = Multiwii.IDLE
             #self.ser.flushOutput()
@@ -636,8 +643,8 @@ class Multiwii:
             payload.append(self.byteP[i])
             payload.append(self.byteI[i])
             payload.append(self.byteD[i])
-        print "Payload:..."
-        print payload
+        print("Payload:...")
+        print(payload)
         self.sendRequestMSP(self.requestMSP(Multiwii.MSP_SET_PID, payload, True), True)
 
 
@@ -680,7 +687,7 @@ class Multiwii:
                 self.msp_raw_imu['gyry'] -= 65536
             if self.msp_raw_imu['gyrz'] > 32768:
                 self.msp_raw_imu['gyrz'] -= 65536
-            print "size: %d, accx: %f, accy: %f, accz: %f, gyrx: %f, gyry: %f, gyrz: %f  " %(self.msp_raw_imu['size'], self.msp_raw_imu['accx'], self.msp_raw_imu['accy'], self.msp_raw_imu['accz'], self.msp_raw_imu['gyrx'], self.msp_raw_imu['gyry'], self.msp_raw_imu['gyrz'])
+            print("size: %d, accx: %f, accy: %f, accz: %f, gyrx: %f, gyry: %f, gyrz: %f  " %(self.msp_raw_imu['size'], self.msp_raw_imu['accx'], self.msp_raw_imu['accy'], self.msp_raw_imu['accz'], self.msp_raw_imu['gyrx'], self.msp_raw_imu['gyry'], self.msp_raw_imu['gyrz']))
             time.sleep(0.04)
             timer = timer + (time.time() - start)
             start = time.time()
